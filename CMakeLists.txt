@@ -18,6 +18,7 @@ install(TARGETS synth_node
 
 install(PROGRAMS
   scripts/synth_gui.py
+  scripts/audio_sink.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -52,9 +52,15 @@ pip3 install numpy sounddevice pyaudio
 ```bash
 ros2 run bob_synth synth_node
 ```
-2. Start the Audio Player & GUI:
+2. Start the GUI & Player (Desktop)
 ```bash
 ros2 run bob_synth synth_gui.py
+```
+
+### Headless Player (CLI/Docker)
+Falls keine Grafikebene (X11) vorhanden ist oder nur der Sound wiedergegeben werden soll:
+```bash
+ros2 run bob_synth audio_sink.py
 ```
 
 ### CLI (One-Shot)
