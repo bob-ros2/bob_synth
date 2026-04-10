@@ -24,14 +24,21 @@ ARG ROS_DISTRO
 
 WORKDIR /ros2_ws
 
-# Copy only the built artifacts from the builder stage
-COPY --from=builder /ros2_ws/install /ros2_ws/install
-
-# Install only minimal runtime dependencies if needed
-# (bob_synth has no external binary deps currently)
+# Install runtime dependencies (Audio, Python, Tkinter)
 RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-tk \
+    libasound2 \
+    libportaudio2 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy built artifacts
+COPY --from=builder /ros2_ws/install /ros2_ws/install
+
+# Install Python requirements
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Source both ROS and local setup
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc && \
