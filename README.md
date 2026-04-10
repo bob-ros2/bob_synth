@@ -1,5 +1,8 @@
 # Bob Synth - BOB SYNTH for AI's
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Build Status](https://github.com/bob-ros2/bob_synth/workflows/CI/badge.svg)](https://github.com/bob-ros2/bob_synth/actions)
+
 A high-fidelity, low-latency ROS 2 synthesizer node designed for AI-driven audio generation and autonomous bot assistants.
 
 ## 🤖 AI Logic & Integration
