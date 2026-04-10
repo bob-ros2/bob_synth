@@ -4,9 +4,11 @@
 [![amd64](https://img.shields.io/github/actions/workflow/status/bob-ros2/bob_synth/docker.yml?label=amd64&logo=docker)](https://github.com/bob-ros2/bob_synth/actions/workflows/docker.yml)
 [![arm64](https://img.shields.io/github/actions/workflow/status/bob-ros2/bob_synth/docker.yml?label=arm64&logo=docker)](https://github.com/bob-ros2/bob_synth/actions/workflows/docker.yml)
 
+<img src="assets/gui_preview.png" width="33%">
+
 A high-fidelity, low-latency ROS 2 synthesizer node designed for AI-driven audio generation and autonomous bot assistants.
 
-## 🤖 AI Logic & Integration
+## AI Logic & Integration
 This package is specifically optimized for AI interaction. It provides a clean ROS 2 API for real-time parameter manipulation and audio streaming.
 
 - **Objective**: Provide a stable, predictable sound engine for AI agents (like Eva).
@@ -18,7 +20,7 @@ The system follows a decoupled architecture for maximum stability:
 1.  **Synth Node (C++)**: The real-time engine. Handles wave generation, ADSR envelopes, and LFO modulation.
 2.  **Synth GUI & Player (Python)**: The human interface and audio sink. Uses `sounddevice` (ALSA) for jitter-free playback on hardware (HDMI, Speakers).
 
-## 📡 ROS 2 API
+## ROS 2 API
 
 ### Topics
 | Topic | Type | Description |
@@ -39,7 +41,7 @@ The system follows a decoupled architecture for maximum stability:
 | `release` | double | 0.0 - 2.0 | Envelope release time. |
 | `note_on` | bool | true/false | Triggers the ADS phase or starts Release. |
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Installation
 Ensure you have the required Python dependencies:
@@ -57,8 +59,5 @@ ros2 run bob_synth synth_node
 ros2 run bob_synth synth_gui.py
 ```
 
-## 🎨 Aesthetics
+## Aesthetics
 The GUI is designed with a premium dark theme, neon magenta accents, and an AI-first mindset.
-
----
-*Status: Blitzblank Deluxe*
