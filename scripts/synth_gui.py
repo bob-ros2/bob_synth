@@ -156,20 +156,21 @@ class MainGUI:
         style.configure("TLabel", background=bg_color, foreground=text_color, font=("Verdana", 9))
         style.configure("Header.TLabel", font=("Verdana", 14, "bold"), foreground=accent_magenta)
         style.configure("Slogan.TLabel", font=("Courier", 10, "italic"), foreground="#888")
-        
+
         style.configure("TLabelframe", background=panel_color, bordercolor="#333", relief="flat")
         style.configure("TLabelframe.Label", background=panel_color, foreground=accent_cyan,
                         font=("Verdana", 10, "bold"))
 
         # --- Custom Slider Look ---
-        style.configure("TScale", background=panel_color, troughcolor="#222", 
+        style.configure("TScale", background=panel_color, troughcolor="#222",
                         bordercolor="#333", lightcolor=accent_cyan, darkcolor=accent_cyan)
 
         # --- Header ---
         header_frame = ttk.Frame(self.root, padding=10)
         header_frame.pack(fill="x")
-        ttk.Label(header_frame, text="BOB SYNTH", style="Header.TLabel").pack()
-        ttk.Label(header_frame, text="BOB SYNTH for AI's", style="Slogan.TLabel").pack()
+        ttk.Label(header_frame, text="BOB SYNTH for AI's", style="Header.TLabel").pack()
+        ttk.Label(header_frame, text="(recursiv) groove into your heart ....",
+                  style="Slogan.TLabel").pack()
 
         # --- Main Layout Container (2 Columns) ---
         main_container = ttk.Frame(self.root, padding=5)
@@ -179,44 +180,11 @@ class MainGUI:
         left_col.pack(side="left", fill="both", expand=True)
 
         right_col = ttk.Frame(main_container)
-        right_col.pack(side="left", fill="both", expand=True)
+        right_col.pack(side="right", fill="both", expand=True)
 
-        # --- LEFT COLUMN: MODULATION & ENVELOPE ---
-        # Modulation
-        m_frame = ttk.LabelFrame(left_col, text=" MODULATION (LFO) ", padding=12)
-        m_frame.pack(fill="x", padx=10, pady=8)
-
-        ttk.Label(m_frame, text="LFO Frequency (Hz)", background=panel_color).pack()
-        self.mod_freq_v = tk.DoubleVar(value=5.0)
-        mf_scale = ttk.Scale(m_frame, from_=0, to=20, orient="horizontal",
-                             variable=self.mod_freq_v,
-                             command=lambda e: self.send_mod("mod_frequency"))
-        mf_scale.pack(fill="x", pady=5)
-
-        ttk.Label(m_frame, text="LFO Depth", background=panel_color).pack()
-        self.mod_depth_v = tk.DoubleVar(value=0.0)
-        md_scale = ttk.Scale(m_frame, from_=0, to=100, orient="horizontal",
-                             variable=self.mod_depth_v,
-                             command=lambda e: self.send_mod("mod_depth"))
-        md_scale.pack(fill="x", pady=5)
-
-        # Envelope (ADSR)
-        a_frame = ttk.LabelFrame(left_col, text=" ENVELOPE (ADSR) ", padding=12)
-        a_frame.pack(fill="both", expand=True, padx=10, pady=8)
-
-        self.adsr = {}
-        for name, dval in [("attack", 0.1), ("decay", 0.1), ("sustain", 0.7), ("release", 0.2)]:
-            ttk.Label(a_frame, text=name.capitalize(), background=panel_color).pack()
-            var = tk.DoubleVar(value=dval)
-            self.adsr[name] = var
-            s_to = 2.0 if name != "sustain" else 1.0
-            s = ttk.Scale(a_frame, from_=0, to=s_to, orient="horizontal",
-                          variable=var, command=lambda e, n=name: self.send_adsr(n))
-            s.pack(fill="x", pady=2)
-
-        # --- RIGHT COLUMN: MASTER & OSCILLATOR ---
+        # --- LEFT COLUMN: MASTER & OSCILLATOR ---
         # Master
-        p_frame = ttk.LabelFrame(right_col, text=" MASTER ", padding=12)
+        p_frame = ttk.LabelFrame(left_col, text=" MASTER ", padding=12)
         p_frame.pack(fill="x", padx=10, pady=8)
 
         ttk.Label(p_frame, text="Volume", background=panel_color).pack()
@@ -226,7 +194,7 @@ class MainGUI:
         v_scale.pack(fill="x", pady=5)
 
         # Oscillator
-        o_frame = ttk.LabelFrame(right_col, text=" OSCILLATOR ", padding=12)
+        o_frame = ttk.LabelFrame(left_col, text=" OSCILLATOR ", padding=12)
         o_frame.pack(fill="both", expand=True, padx=10, pady=8)
 
         ttk.Label(o_frame, text="Frequency (Hz)", background=panel_color).pack()
@@ -247,6 +215,39 @@ class MainGUI:
                      lambda e: self.node.set_param(
                          "waveform", self.wave_v.get(),
                          ParameterType.PARAMETER_STRING))
+
+        # --- RIGHT COLUMN: MODULATION & ENVELOPE ---
+        # Modulation
+        m_frame = ttk.LabelFrame(right_col, text=" MODULATION (LFO) ", padding=12)
+        m_frame.pack(fill="x", padx=10, pady=8)
+
+        ttk.Label(m_frame, text="LFO Frequency (Hz)", background=panel_color).pack()
+        self.mod_freq_v = tk.DoubleVar(value=5.0)
+        mf_scale = ttk.Scale(m_frame, from_=0, to=20, orient="horizontal",
+                             variable=self.mod_freq_v,
+                             command=lambda e: self.send_mod("mod_frequency"))
+        mf_scale.pack(fill="x", pady=5)
+
+        ttk.Label(m_frame, text="LFO Depth", background=panel_color).pack()
+        self.mod_depth_v = tk.DoubleVar(value=0.0)
+        md_scale = ttk.Scale(m_frame, from_=0, to=100, orient="horizontal",
+                             variable=self.mod_depth_v,
+                             command=lambda e: self.send_mod("mod_depth"))
+        md_scale.pack(fill="x", pady=5)
+
+        # Envelope (ADSR)
+        a_frame = ttk.LabelFrame(right_col, text=" ENVELOPE (ADSR) ", padding=12)
+        a_frame.pack(fill="both", expand=True, padx=10, pady=8)
+
+        self.adsr = {}
+        for name, dval in [("attack", 0.1), ("decay", 0.1), ("sustain", 0.7), ("release", 0.2)]:
+            ttk.Label(a_frame, text=name.capitalize(), background=panel_color).pack()
+            var = tk.DoubleVar(value=dval)
+            self.adsr[name] = var
+            s_to = 2.0 if name != "sustain" else 1.0
+            s = ttk.Scale(a_frame, from_=0, to=s_to, orient="horizontal",
+                          variable=var, command=lambda e, n=name: self.send_adsr(n))
+            s.pack(fill="x", pady=2)
 
         # --- FOOTER: NOTE CONTROL ---
         n_frame = ttk.Frame(self.root, padding=25)
@@ -289,7 +290,7 @@ class MainGUI:
         self.node.set_param("note_on", new_state, ParameterType.PARAMETER_BOOL)
         accent_magenta = "#b000b0"
         accent_cyan = "#00a1a1"
-        
+
         if new_state:
             self.note_btn.config(text="RELEASING...", bg=accent_magenta, fg="#000000")
         else:
