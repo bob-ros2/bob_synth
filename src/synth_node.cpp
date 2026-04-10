@@ -88,7 +88,7 @@ public:
     auto sub_opt = rclcpp::SubscriptionOptions();
     sub_opt.callback_group = callback_group_;
     config_sub_ = this->create_subscription<std_msgs::msg::String>(
-      "config_in", 10,
+      "synth_config", 10,
       std::bind(&SynthNode::jsonConfigCallback, this, std::placeholders::_1),
       sub_opt);
 

@@ -26,7 +26,7 @@ The system follows a modular, decoupled architecture for maximum stability and f
 | Topic | Type | Description |
 | :--- | :--- | :--- |
 | `audio_out` | `std_msgs/Int16MultiArray` | Raw stereo PCM data (44.1kHz). |
-| `config_in` | `std_msgs/String` | AI Interface: Accepts JSON strings to update parameters. |
+| `/synth_config` | `std_msgs/String` | AI Interface: Accepts JSON strings to update parameters. |
 
 ### Parameters
 | Name | Type | Range | Description |
@@ -60,7 +60,7 @@ ros2 run bob_synth synth_gui.py
 ```
 
 ### Headless Player (CLI/Docker)
-Falls keine Grafikebene (X11) vorhanden ist oder nur der Sound wiedergegeben werden soll:
+For environments without a graphical environment (X11) or when only audio playback is needed:
 ```bash
 ros2 run bob_synth audio_sink.py
 ```
@@ -72,30 +72,30 @@ ros2 topic pub /synth_config std_msgs/msg/String "data: '{\"frequency\": 220.0, 
 
 ## AI Control Interface (JSON)
 
-Der Synthesizer ist primär dafür gedacht, KI-Agenten eine zusätzliche "Ausdrucksebene" zu bieten (ähnlich wie Emojis). Die Steuerung erfolgt über das Topic `/synth_config` mittels JSON-Strings.
+The synthesizer is primarily designed to provide AI agents with an additional "expressive output layer" (similar to emoticons/icons). Control is handled via the `/synth_config` topic using JSON strings.
 
 ### JSON Schema
 | Key | Type | Range | Description |
 |:--- |:--- |:--- |:--- |
-| `note_on` | boolean | `true`/`false` | Triggert die ADSR-Hüllkurve |
-| `frequency` | float | 20.0 - 2000.0 | Grundfrequenz in Hz |
-| `waveform` | string | `sine`, `square`, `sawtooth` | Oszillator-Typ |
-| `amplitude` | float | 0.0 - 1.0 | Master-Gain (Lautstärke) |
-| `filter_cutoff` | float | 20.0 - 16000.0 | Eckfrequenz des SV-Filters |
-| `filter_resonance`| float | 0.0 - 0.95 | Resonanz-Güte |
-| `mod_frequency` | float | 0.0 - 20.0 | LFO-Geschwindigkeit |
-| `mod_depth` | float | 0.0 - 100.0 | LFO-Intensität |
-| `attack`/`decay` | float | 0.0 - 2.0 | ADSR Zeitwerte (Sekunden) |
+| `note_on` | boolean | `true`/`false` | Triggers the ADSR envelope |
+| `frequency` | float | 20.0 - 2000.0 | Base oscillator frequency in Hz |
+| `waveform` | string | `sine`, `square`, `sawtooth` | Oscillator type |
+| `amplitude` | float | 0.0 - 1.0 | Master gain (volume) |
+| `filter_cutoff` | float | 20.0 - 16000.0 | Cutoff frequency of the SV filter |
+| `filter_resonance`| float | 0.0 - 0.95 | Filter resonance (Q factor) |
+| `mod_frequency` | float | 0.0 - 20.0 | LFO frequency (vibrato speed) |
+| `mod_depth` | float | 0.0 - 100.0 | LFO intensity (modulation depth) |
+| `attack`/`decay` | float | 0.0 - 2.0 | ADSR time values (seconds) |
 
 ## GUI & User Interface
 
-Die GUI dient zur Visualisierung und manuellen Justierung der Parameter während der Entwicklung.
+The GUI is provided for visualization and manual parameter adjustments during development and testing.
 
 <img src="media/bob_synth.png" width="50%">
 
-### Bedien-Panels
-*   **OSCILLATOR:** Einstellung der Wellenform und Grundfrequenz.
-*   **MODULATION:** LFO zur Frequenzmodulation (Vibrato/FX).
-*   **FILTER:** 12dB State Variable Filter (Lowpass) mit Resonanz.
-*   **ENVELOPE:** Standard ADSR-Hüllkurve für den Lautstärkeverlauf.
-*   **MASTER/TRIGGER:** Endlautstärke und manueller Note-Trigger.
+### Control Panels
+*   **OSCILLATOR:** Waveform selection and base frequency adjustment.
+*   **MODULATION:** LFO for frequency modulation (vibrato/experimental FX).
+*   **FILTER:** 12dB State Variable Filter (low-pass) with resonance.
+*   **ENVELOPE:** Standard ADSR envelope for volume shaping.
+*   **MASTER/TRIGGER:** Final output volume and manual note trigger button.
