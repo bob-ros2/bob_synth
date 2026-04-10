@@ -140,7 +140,7 @@ class MainGUI:
         self.node = ros_node
         self.root = tk.Tk()
         self.root.title("Bob Synth - Moog Edition")
-        self.root.geometry("750x780")
+        self.root.geometry("750x860")
         self.root.configure(bg="#0f0f0f")
 
         # Color Palette - Muted Premium Tone
@@ -172,53 +172,37 @@ class MainGUI:
         ttk.Label(header_frame, text="groove into your heart ...",
                   style="Slogan.TLabel").pack()
 
-        # --- Main Layout Container (2 Columns) ---
-        main_container = ttk.Frame(self.root, padding=5)
-        main_container.pack(fill="both", expand=True)
+        # --- Main Layout Sections ---
+        top_container = ttk.Frame(self.root)
+        top_container.pack(fill="both", expand=True, padx=5, pady=5)
 
-        left_col = ttk.Frame(main_container)
+        # 1. LEFT COLUMN: OSCILLATOR & MODULATION
+        left_col = ttk.Frame(top_container)
         left_col.pack(side="left", fill="both", expand=True)
 
-        right_col = ttk.Frame(main_container)
-        right_col.pack(side="right", fill="both", expand=True)
-
-        # --- LEFT COLUMN: MASTER & OSCILLATOR ---
-        # Master
-        p_frame = ttk.LabelFrame(left_col, text=" MASTER ", padding=12)
-        p_frame.pack(fill="x", padx=10, pady=8)
-
-        ttk.Label(p_frame, text="Volume", background=panel_color).pack()
-        self.vol_v = tk.DoubleVar(value=50.0)
-        v_scale = ttk.Scale(p_frame, from_=0, to=100, orient="horizontal",
-                            variable=self.vol_v, command=self.update_vol)
-        v_scale.pack(fill="x", pady=5)
-
         # Oscillator
-        o_frame = ttk.LabelFrame(left_col, text=" OSCILLATOR ", padding=12)
-        o_frame.pack(fill="both", expand=True, padx=10, pady=8)
+        o_frame = ttk.LabelFrame(left_col, text=" OSCILLATOR (Core) ", padding=12)
+        o_frame.pack(fill="x", padx=10, pady=8)
 
-        ttk.Label(o_frame, text="Frequency (Hz)", background=panel_color).pack()
+        ttk.Label(o_frame, text="Waveform Type", background=panel_color).pack()
+        self.wave_v = tk.StringVar(value="sine")
+        w_menu = ttk.OptionMenu(o_frame, self.wave_v, "sine", "sine", "square", "sawtooth",
+                                command=lambda e: self.node.set_param(
+                                    "waveform", self.wave_v.get(),
+                                    ParameterType.PARAMETER_STRING))
+        w_menu.pack(fill="x", pady=5)
+
+        ttk.Label(o_frame, text="Base Frequency (Hz)", background=panel_color).pack()
         self.freq_v = tk.DoubleVar(value=440.0)
         f_scale = ttk.Scale(o_frame, from_=20, to=2000, orient="horizontal",
-                            variable=self.freq_v, command=lambda e: self.send_freq())
+                            variable=self.freq_v,
+                            command=lambda e: self.node.set_param(
+                                "frequency", self.freq_v.get(),
+                                ParameterType.PARAMETER_DOUBLE))
         f_scale.pack(fill="x", pady=5)
-        self.freq_lbl = ttk.Label(o_frame, text="440.0", background=panel_color,
-                                  foreground=accent_magenta)
-        self.freq_lbl.pack()
 
-        ttk.Label(o_frame, text="Waveform", background=panel_color).pack()
-        self.wave_v = tk.StringVar(value="sine")
-        w_vals = ["sine", "square", "triangle", "sawtooth"]
-        w_combo = ttk.Combobox(o_frame, textvariable=self.wave_v, values=w_vals)
-        w_combo.pack(fill="x", pady=5)
-        w_combo.bind("<<ComboboxSelected>>",
-                     lambda e: self.node.set_param(
-                         "waveform", self.wave_v.get(),
-                         ParameterType.PARAMETER_STRING))
-
-        # --- RIGHT COLUMN: MODULATION, FILTER & ENVELOPE ---
-        # Modulation
-        m_frame = ttk.LabelFrame(right_col, text=" MODULATION (LFO) ", padding=12)
+        # Modulation (LFO)
+        m_frame = ttk.LabelFrame(left_col, text=" MODULATION (LFO) ", padding=12)
         m_frame.pack(fill="x", padx=10, pady=8)
 
         ttk.Label(m_frame, text="LFO Frequency (Hz)", background=panel_color).pack()
@@ -235,8 +219,12 @@ class MainGUI:
                              command=lambda e: self.send_mod("mod_depth"))
         md_scale.pack(fill="x", pady=5)
 
+        # 2. RIGHT COLUMN: FILTER & ENVELOPE
+        right_col = ttk.Frame(top_container)
+        right_col.pack(side="right", fill="both", expand=True)
+
         # Filter
-        f_frame = ttk.LabelFrame(right_col, text=" FILTER (24dB) ", padding=12)
+        f_frame = ttk.LabelFrame(right_col, text=" FILTER (Precise SVF) ", padding=12)
         f_frame.pack(fill="x", padx=10, pady=8)
 
         ttk.Label(f_frame, text="Cutoff Frequency (Hz)", background=panel_color).pack()
@@ -258,35 +246,36 @@ class MainGUI:
         a_frame.pack(fill="both", expand=True, padx=10, pady=8)
 
         self.adsr = {}
-        for name, dval in [("attack", 0.1), ("decay", 0.1), ("sustain", 0.7), ("release", 0.2)]:
-            ttk.Label(a_frame, text=name.capitalize(), background=panel_color).pack()
-            var = tk.DoubleVar(value=dval)
-            self.adsr[name] = var
-            s_to = 2.0 if name != "sustain" else 1.0
-            s = ttk.Scale(a_frame, from_=0, to=s_to, orient="horizontal",
-                          variable=var, command=lambda e, n=name: self.send_adsr(n))
+        for p in ["attack", "decay", "sustain", "release"]:
+            ttk.Label(a_frame, text=p.capitalize(), background=panel_color).pack()
+            self.adsr[p] = tk.DoubleVar(value=0.1 if p != "sustain" else 0.7)
+            s = ttk.Scale(a_frame, from_=0, to=1.0, orient="horizontal",
+                          variable=self.adsr[p],
+                          command=lambda e, name=p: self.send_adsr(name))
             s.pack(fill="x", pady=2)
 
-        # --- FOOTER: NOTE CONTROL ---
-        n_frame = ttk.Frame(self.root, padding=25)
-        n_frame.pack(fill="x")
+        # 3. MASTER SECTION (Full Width)
+        master_frame = ttk.LabelFrame(self.root, text=" MASTER CONTROLS ", padding=12)
+        master_frame.pack(fill="x", padx=15, pady=5)
+
+        ttk.Label(master_frame, text="Master Output Gain", background=panel_color).pack()
+        self.amp_v = tk.DoubleVar(value=0.5)
+        a_scale = ttk.Scale(master_frame, from_=0, to=1.0, orient="horizontal",
+                            variable=self.amp_v,
+                            command=lambda e: self.node.set_param(
+                                "amplitude", self.amp_v.get(),
+                                ParameterType.PARAMETER_DOUBLE))
+        a_scale.pack(fill="x", pady=5)
+
+        # 4. TRIGGER BUTTON (Full Width)
+        btn_frame = ttk.Frame(self.root, padding=15)
+        btn_frame.pack(fill="x")
 
         self.note_v = tk.BooleanVar(value=False)
-        self.note_btn = tk.Button(
-            n_frame, text="TRIGGER NOTE", bg="#222", fg="#00a1a1",
-            font=("Verdana", 14, "bold"), activebackground="#b000b0",
-            relief="flat", bd=4, command=self.toggle_note)
-        self.note_btn.pack(fill="both", ipady=10)
-
-    def update_vol(self, e):
-        """Update local playback volume."""
-        self.node.volume = self.vol_v.get() / 100.0
-
-    def send_freq(self):
-        """Send frequency update to synth node."""
-        val = self.freq_v.get()
-        self.freq_lbl.config(text=f"{val:.1f}")
-        self.node.set_param("frequency", val, ParameterType.PARAMETER_DOUBLE)
+        self.note_btn = tk.Button(btn_frame, text="TRIGGER NOTE", font=("Verdana", 12, "bold"),
+                                  bg=accent_cyan, fg="#000000", activebackground=accent_magenta,
+                                  relief="flat", height=2, command=self.toggle_note)
+        self.note_btn.pack(fill="x")
 
     def send_mod(self, name):
         """Send LFO parameter update to synth node."""
@@ -317,7 +306,7 @@ class MainGUI:
         if new_state:
             self.note_btn.config(text="RELEASING...", bg=accent_magenta, fg="#000000")
         else:
-            self.note_btn.config(text="TRIGGER NOTE", bg="#222", fg=accent_cyan)
+            self.note_btn.config(text="TRIGGER NOTE", bg=accent_cyan, fg="#000000")
 
     def run(self):
         """Start ROS thread and Tkinter main loop."""
