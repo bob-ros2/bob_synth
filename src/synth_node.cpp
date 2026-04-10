@@ -13,15 +13,17 @@
 // limitations under the License.
 
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <atomic>
+#include <condition_variable>
 #include <mutex>
+#include <queue>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <rclcpp/rclcpp.hpp>
@@ -75,8 +77,6 @@ public:
     declare_with_env("sample_rate", 44100);
     declare_with_env("channels", 2);
     declare_with_env("chunk_ms", 20);
-    declare_with_env("pipe_path", std::string("/tmp/synth_pipe"));
-    declare_with_env("use_pipe", false);
 
     // Publisher
     publisher_ = this->create_publisher<std_msgs::msg::Int16MultiArray>(
@@ -107,34 +107,13 @@ public:
     RCLCPP_INFO(
       this->get_logger(), "Resolved Output Topic: %s",
       publisher_->get_topic_name());
-
-    if (use_pipe_) {
-      openPipe();
-    }
   }
 
   ~SynthNode()
   {
-    if (pipe_fd_ != -1) {
-      close(pipe_fd_);
-    }
   }
 
 private:
-  void openPipe()
-  {
-    std::string path = this->get_parameter("pipe_path").as_string();
-    mkfifo(path.c_str(), 0666);
-    pipe_fd_ = open(path.c_str(), O_WRONLY | O_NONBLOCK);
-    if (pipe_fd_ != -1) {
-      RCLCPP_INFO(this->get_logger(), "FIFO Pipe ready: %s", path.c_str());
-    } else {
-      RCLCPP_WARN(
-        this->get_logger(), "Pipe open failed: %s",
-        path.c_str());
-    }
-  }
-
   void syncInternalState()
   {
     std::lock_guard<std::mutex> lock(audio_mutex_);
@@ -145,10 +124,11 @@ private:
     decay_ = this->get_parameter("decay").as_double();
     sustain_ = this->get_parameter("sustain").as_double();
     release_ = this->get_parameter("release").as_double();
+    mod_frequency_ = this->get_parameter("mod_frequency").as_double();
+    mod_depth_ = this->get_parameter("mod_depth").as_double();
     sample_rate_ = this->get_parameter("sample_rate").as_int();
     channels_ = this->get_parameter("channels").as_int();
     note_on_ = this->get_parameter("note_on").as_bool();
-    use_pipe_ = this->get_parameter("use_pipe").as_bool();
 
     int chunk_ms = this->get_parameter("chunk_ms").as_int();
     samples_per_chunk_ = (sample_rate_ * chunk_ms) / 1000;
@@ -189,15 +169,19 @@ private:
   void generateAudio()
   {
     std::lock_guard<std::mutex> lock(audio_mutex_);
-    if (!note_on_ && adsr_phase_ == RELEASE && env_level_ <= 0.001) {return;}
-
+    // We always generate audio (even silence) to keep the FIFO stream stable and timed correctly.
     auto msg = std_msgs::msg::Int16MultiArray();
     msg.data.resize(samples_per_chunk_ * channels_);
     double dt = 1.0 / sample_rate_;
 
     for (int i = 0; i < samples_per_chunk_; i++) {
       updateEnvelope(dt);
-      phase_ += 2.0 * M_PI * frequency_ * dt;
+
+      mod_phase_ += 2.0 * M_PI * mod_frequency_ * dt;
+      if (mod_phase_ > 2.0 * M_PI) {mod_phase_ -= 2.0 * M_PI;}
+
+      double current_freq = frequency_ + (sin(mod_phase_) * mod_depth_);
+      phase_ += 2.0 * M_PI * current_freq * dt;
       if (phase_ > 2.0 * M_PI) {phase_ -= 2.0 * M_PI;}
 
       double s = 0.0;
@@ -211,15 +195,12 @@ private:
         s = (fmod(phase_, 2.0 * M_PI) / M_PI) - 1.0;
       }
 
-      s *= amplitude_ * env_level_;
-      int16_t pcm = static_cast<int16_t>(s * 32767.0);
+      double mixed_sample = s * amplitude_ * env_level_;
+      int16_t pcm = static_cast<int16_t>(std::clamp(mixed_sample, -1.0, 1.0) * 32767.0);
       for (int ch = 0; ch < channels_; ch++) {msg.data[i * channels_ + ch] = pcm;}
     }
 
     publisher_->publish(msg);
-    if (pipe_fd_ != -1) {
-      write(pipe_fd_, msg.data.data(), msg.data.size() * sizeof(int16_t));
-    }
   }
 
   void updateEnvelope(double dt)
@@ -227,53 +208,76 @@ private:
     switch (adsr_phase_) {
       case ATTACK:
         env_level_ += dt / std::max(0.001, attack_);
-        if (env_level_ >= 1.0) {env_level_ = 1.0; adsr_phase_ = DECAY;}
+        if (env_level_ >= 1.0) {
+          env_level_ = 1.0;
+          adsr_phase_ = DECAY;
+        }
         break;
       case DECAY:
-        env_level_ -= dt / std::max(0.001, decay_) * (1.0 - sustain_);
-        if (env_level_ <= sustain_) {env_level_ = sustain_; adsr_phase_ = SUSTAIN;}
+        if (env_level_ > sustain_) {
+          env_level_ -= dt / std::max(0.001, decay_) * (1.0 - sustain_);
+          if (env_level_ <= sustain_) {
+            env_level_ = sustain_;
+            adsr_phase_ = SUSTAIN;
+          }
+        } else {
+          env_level_ = sustain_;
+          adsr_phase_ = SUSTAIN;
+        }
         break;
       case SUSTAIN:
-        if (!note_on_) {adsr_phase_ = RELEASE;}
+        env_level_ = sustain_;
+        if (!note_on_) {
+          adsr_phase_ = RELEASE;
+        }
         break;
       case RELEASE:
-        env_level_ -= dt / std::max(0.001, release_) * sustain_;
-        if (env_level_ <= 0.0) {env_level_ = 0.0;}
+        env_level_ -= dt / std::max(0.001, release_);
+        if (env_level_ <= 0.0) {
+          env_level_ = 0.0;
+        }
         break;
     }
+    // Strict clamping to [0.0, 1.0] as per requirement
+    env_level_ = std::max(0.0, std::min(1.0, env_level_));
   }
 
   rcl_interfaces::msg::SetParametersResult parametersCallback(
     const std::vector<rclcpp::Parameter> & params)
   {
-    std::lock_guard<std::mutex> lock(audio_mutex_);
-    rcl_interfaces::msg::SetParametersResult res; res.successful = true;
-    for (const auto & p : params) {
-      if (p.get_name() == "frequency") {
-        frequency_ = p.as_double();
-      } else if (p.get_name() == "amplitude") {
-        amplitude_ = p.as_double();
-      } else if (p.get_name() == "waveform") {
-        waveform_ = p.as_string();
-      } else if (p.get_name() == "attack") {
-        attack_ = p.as_double();
-      } else if (p.get_name() == "decay") {
-        decay_ = p.as_double();
-      } else if (p.get_name() == "sustain") {
-        sustain_ = p.as_double();
-      } else if (p.get_name() == "release") {
-        release_ = p.as_double();
-      } else if (p.get_name() == "note_on") {
-        if (p.as_bool() && !note_on_) {
-          note_on_ = true; adsr_phase_ = ATTACK;
-        } else if (!p.as_bool() && note_on_) {
-          note_on_ = false; adsr_phase_ = RELEASE;
+    {
+      std::lock_guard<std::mutex> lock(audio_mutex_);
+      for (const auto & p : params) {
+        if (p.get_name() == "frequency") {
+          frequency_ = p.as_double();
+        } else if (p.get_name() == "amplitude") {
+          amplitude_ = p.as_double();
+        } else if (p.get_name() == "waveform") {
+          waveform_ = p.as_string();
+        } else if (p.get_name() == "attack") {
+          attack_ = p.as_double();
+        } else if (p.get_name() == "decay") {
+          decay_ = p.as_double();
+        } else if (p.get_name() == "sustain") {
+          sustain_ = p.as_double();
+        } else if (p.get_name() == "release") {
+          release_ = p.as_double();
+        } else if (p.get_name() == "mod_frequency") {
+          mod_frequency_ = p.as_double();
+        } else if (p.get_name() == "mod_depth") {
+          mod_depth_ = p.as_double();
+        } else if (p.get_name() == "note_on") {
+          if (p.as_bool() && !note_on_) {
+            note_on_ = true; adsr_phase_ = ATTACK;
+          } else if (!p.as_bool() && note_on_) {
+            note_on_ = false; adsr_phase_ = RELEASE;
+          }
         }
-      } else if (p.get_name() == "use_pipe") {
-        use_pipe_ = p.as_bool();
-        if (use_pipe_ && pipe_fd_ == -1) {openPipe();}
       }
     }
+
+    rcl_interfaces::msg::SetParametersResult res;
+    res.successful = true;
     return res;
   }
 
@@ -283,12 +287,13 @@ private:
   rclcpp::CallbackGroup::SharedPtr callback_group_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_;
   double frequency_, amplitude_, attack_, decay_, sustain_, release_;
+  double mod_frequency_, mod_depth_;
   std::string waveform_;
   int sample_rate_, channels_, samples_per_chunk_;
-  bool note_on_ = false, use_pipe_ = false;
-  double phase_ = 0.0, env_level_ = 0.0;
-  int pipe_fd_ = -1;
+  bool note_on_ = false;
+  double phase_ = 0.0, mod_phase_ = 0.0, env_level_ = 0.0;
   std::mutex audio_mutex_;
+
   enum ADSRPhase {ATTACK, DECAY, SUSTAIN, RELEASE};
   ADSRPhase adsr_phase_ = RELEASE;
 };

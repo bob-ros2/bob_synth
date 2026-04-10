@@ -16,6 +16,11 @@ ament_target_dependencies(synth_node rclcpp std_msgs)
 install(TARGETS synth_node
   DESTINATION lib/${PROJECT_NAME})
 
+install(PROGRAMS
+  scripts/synth_gui.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
