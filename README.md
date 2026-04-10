@@ -1,7 +1,8 @@
 # ROS Package [bob_synth](https://github.com/bob-ros2/bob_synth)
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://github.com/bob-ros2/bob_synth/workflows/CI/badge.svg)](https://github.com/bob-ros2/bob_synth/actions)
+[![CI](https://github.com/bob-ros2/bob_synth/actions/workflows/ros2_ci.yaml/badge.svg)](https://github.com/bob-ros2/bob_synth/actions/workflows/ros2_ci.yaml)
+[![amd64](https://img.shields.io/github/actions/workflow/status/bob-ros2/bob_synth/docker.yml?label=amd64&logo=docker)](https://github.com/bob-ros2/bob_synth/actions/workflows/docker.yml)
+[![arm64](https://img.shields.io/github/actions/workflow/status/bob-ros2/bob_synth/docker.yml?label=arm64&logo=docker)](https://github.com/bob-ros2/bob_synth/actions/workflows/docker.yml)
 
 A high-fidelity, low-latency ROS 2 synthesizer node designed for AI-driven audio generation and autonomous bot assistants.
 
