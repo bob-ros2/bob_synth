@@ -3,7 +3,7 @@
 <package format="3">
   <name>bob_synth</name>
   <version>0.1.0</version>
-  <description>A simple ROS 2 synthesizer node with oscillator, modulator and ADSR envelope</description>
+  <description>A simple ROS 2 synthesizer node with oscillator, SV-filter, modulator and ADSR envelope. Optimized for AI interaction.</description>
   <maintainer email="bobmeuchelm@gmail.com">Bob Ros</maintainer>
   <license>Apache-2.0</license>
 
