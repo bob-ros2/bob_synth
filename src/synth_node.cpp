@@ -18,7 +18,6 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
-#include <sstream>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -80,7 +79,6 @@ public:
     declare_with_env("sample_rate", 44100);
     declare_with_env("channels", 2);
     declare_with_env("chunk_ms", 20);
-    this->declare_parameter("json_config", "");
 
     // Publisher
     publisher_ = this->create_publisher<std_msgs::msg::Int16MultiArray>(
@@ -96,20 +94,6 @@ public:
 
     // Initial state sync
     syncInternalState();
-
-    // Load initial JSON config if provided
-    std::string config_path = this->get_parameter("json_config").as_string();
-    if (!config_path.empty()) {
-      std::ifstream f(config_path);
-      if (f.is_open()) {
-        std::stringstream buffer;
-        buffer << f.rdbuf();
-        applyJsonConfig(buffer.str());
-        RCLCPP_INFO(this->get_logger(), "Loaded initial config from: %s", config_path.c_str());
-      } else {
-        RCLCPP_ERROR(this->get_logger(), "Could not open json_config file: %s", config_path.c_str());
-      }
-    }
 
     // Timer
     int chunk_ms = this->get_parameter("chunk_ms").as_int();
@@ -154,8 +138,9 @@ private:
     samples_per_chunk_ = (sample_rate_ * chunk_ms) / 1000;
   }
 
-  void applyJsonConfig(const std::string & json)
+  void jsonConfigCallback(const std_msgs::msg::String::SharedPtr msg)
   {
+    std::string json = msg->data;
     std::vector<rclcpp::Parameter> updates;
 
     auto extract = [&](const std::string & key, bool is_str = false) {
@@ -184,11 +169,6 @@ private:
     extract("sustain"); extract("release");
 
     if (!updates.empty()) {this->set_parameters(updates);}
-  }
-
-  void jsonConfigCallback(const std_msgs::msg::String::SharedPtr msg)
-  {
-    applyJsonConfig(msg->data);
   }
 
   void generateAudio()

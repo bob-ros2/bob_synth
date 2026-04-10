@@ -59,12 +59,12 @@ ros2 run bob_synth synth_gui.py
 
 ### CLI (One-Shot)
 ```bash
-ros2 topic pub config_in std_msgs/msg/String "data: '{\"frequency\": 220.0, \"waveform\": \"sawtooth\", \"filter_cutoff\": 2500.0, \"filter_resonance\": 0.6}'"
+ros2 topic pub /synth_config std_msgs/msg/String "data: '{\"frequency\": 220.0, \"waveform\": \"sawtooth\", \"filter_cutoff\": 2500.0, \"filter_resonance\": 0.6}'"
 ```
 
 ## AI Control Interface (JSON)
 
-Der Synthesizer ist primär dafür gedacht, KI-Agenten eine zusätzliche "Ausdrucksebene" zu bieten (ähnlich wie Emojis). Die Steuerung erfolgt über das Topic `config_in` mittels JSON-Strings.
+Der Synthesizer ist primär dafür gedacht, KI-Agenten eine zusätzliche "Ausdrucksebene" zu bieten (ähnlich wie Emojis). Die Steuerung erfolgt über das Topic `/synth_config` mittels JSON-Strings.
 
 ### JSON Schema
 | Key | Type | Range | Description |
@@ -78,12 +78,6 @@ Der Synthesizer ist primär dafür gedacht, KI-Agenten eine zusätzliche "Ausdru
 | `mod_frequency` | float | 0.0 - 20.0 | LFO-Geschwindigkeit |
 | `mod_depth` | float | 0.0 - 100.0 | LFO-Intensität |
 | `attack`/`decay` | float | 0.0 - 2.0 | ADSR Zeitwerte (Sekunden) |
-
-### Start-Konfiguration (YAML/CLI)
-Man kann beim Start eine JSON-Datei über den Parameter `json_config` laden:
-```bash
-ros2 run bob_synth synth_node --ros-args -p json_config:=/pfad/zu/preset.json
-```
 
 ## GUI & User Interface
 
