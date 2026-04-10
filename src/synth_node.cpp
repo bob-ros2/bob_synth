@@ -94,7 +94,6 @@ public:
 
     // Initial state sync
     syncInternalState();
-    filter_states_.fill(0.0);
 
     // Timer
     int chunk_ms = this->get_parameter("chunk_ms").as_int();
@@ -203,35 +202,23 @@ private:
 
       double sample = s * amplitude_ * env_level_;
 
-      // --- Apply Filter (4-pole Moog-like approximation) ---
-      // Hard clamp cutoff to prevent Nyquist instability (16kHz limit)
-      double safe_cutoff = std::min(filter_cutoff_, 16000.0);
-      double f = 2.0 * safe_cutoff / sample_rate_;
+      // --- Parameter Smoothing (Filter Cutoff) ---
+      // Smoothly interpolate towards target cutoff to avoid zipper noise
+      current_filter_cutoff_ += (filter_cutoff_ - current_filter_cutoff_) * 0.01;
+      double safe_cutoff = std::clamp(current_filter_cutoff_, 20.0, 16000.0);
 
-      double p = f * (1.8 - 0.8 * f);
-      double k = p + p - 1.0;
-      double res = filter_resonance_ / (1.0 - f);
-      if (res > 4.0) {res = 4.0;}
+      // --- Precise State Variable Filter (SVF) ---
+      // f = 2 * sin(pi * freq / sr) - approximation for low frequencies
+      double f = 2.0 * std::sin(M_PI * safe_cutoff / sample_rate_);
+      double q = 1.0 - filter_resonance_;  // Normal resonance mapping
 
-      double x = sample - res * filter_states_[3];
-      filter_states_[0] = x * p + filter_prev_x_ * p - k * filter_states_[0];
-      filter_states_[1] = filter_states_[0] * p + filter_prev_s0_ * p - k * filter_states_[1];
-      filter_states_[2] = filter_states_[1] * p + filter_prev_s1_ * p - k * filter_states_[2];
-      filter_states_[3] = filter_states_[2] * p + filter_prev_s2_ * p - k * filter_states_[3];
+      // SVF Core logic
+      filter_h_ = sample - filter_l_ - q * filter_b_;
+      filter_b_ = f * filter_h_ + filter_b_;
+      filter_l_ = f * filter_b_ + filter_l_;
 
-      filter_prev_x_ = x;
-      filter_prev_s0_ = filter_states_[0];
-      filter_prev_s1_ = filter_states_[1];
-      filter_prev_s2_ = filter_states_[2];
-
-      sample = filter_states_[3];
-
-      // Stability check: Reset if NaN/Inf (Panic Recovery)
-      if (std::isnan(sample) || std::isinf(sample)) {
-        sample = 0.0;
-        filter_states_.fill(0.0);
-        filter_prev_x_ = filter_prev_s0_ = filter_prev_s1_ = filter_prev_s2_ = 0.0;
-      }
+      // Output (Lowpass)
+      sample = filter_l_;
 
       int16_t pcm = static_cast<int16_t>(std::clamp(sample, -1.0, 1.0) * 32767.0);
       for (int ch = 0; ch < channels_; ch++) {msg.data[i * channels_ + ch] = pcm;}
@@ -331,12 +318,9 @@ private:
   std::string waveform_;
   int sample_rate_, channels_, samples_per_chunk_;
   double filter_cutoff_;
+  double current_filter_cutoff_ = 1000.0;
   double filter_resonance_;
-  std::array<double, 4> filter_states_;
-  double filter_prev_x_ = 0.0;
-  double filter_prev_s0_ = 0.0;
-  double filter_prev_s1_ = 0.0;
-  double filter_prev_s2_ = 0.0;
+  double filter_l_ = 0.0, filter_b_ = 0.0, filter_h_ = 0.0;
   bool note_on_ = false;
   double phase_ = 0.0, mod_phase_ = 0.0, env_level_ = 0.0;
   std::mutex audio_mutex_;
