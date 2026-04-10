@@ -46,7 +46,7 @@ The system follows a modular, decoupled architecture for maximum stability and f
 ### Installation
 Ensure you have the required Python dependencies:
 ```bash
-pip3 install numpy sounddevice pyaudio
+pip3 install numpy sounddevice
 ```
 
 ### Running
