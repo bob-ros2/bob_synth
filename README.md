@@ -1,4 +1,4 @@
-# Bob Synth - BOB SYNTH for AI's
+# ROS Package [bob_synth](https://github.com/bob-ros2/bob_synth)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://github.com/bob-ros2/bob_synth/workflows/CI/badge.svg)](https://github.com/bob-ros2/bob_synth/actions)
