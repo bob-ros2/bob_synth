@@ -4,8 +4,6 @@
 [![amd64](https://img.shields.io/github/actions/workflow/status/bob-ros2/bob_synth/docker.yml?label=amd64&logo=docker)](https://github.com/bob-ros2/bob_synth/actions/workflows/docker.yml)
 [![arm64](https://img.shields.io/github/actions/workflow/status/bob-ros2/bob_synth/docker.yml?label=arm64&logo=docker)](https://github.com/bob-ros2/bob_synth/actions/workflows/docker.yml)
 
-<img src="assets/gui_preview.png" width="33%">
-
 A high-fidelity, low-latency ROS 2 synthesizer node designed for AI-driven audio generation and autonomous bot assistants.
 
 ## AI Logic & Integration
@@ -15,7 +13,7 @@ This package is specifically optimized for AI interaction. It provides a clean R
 - **Communication**: Uses standard ROS 2 topics and services for parameter synchronization.
 - **Payload**: High-quality 16-bit PCM audio (Int16MultiArray) at 44.1kHz.
 
-## 🏗 Architecture
+## Architecture
 The system follows a decoupled architecture for maximum stability:
 1.  **Synth Node (C++)**: The real-time engine. Handles wave generation, ADSR envelopes, and LFO modulation.
 2.  **Synth GUI & Player (Python)**: The human interface and audio sink. Uses `sounddevice` (ALSA) for jitter-free playback on hardware (HDMI, Speakers).
@@ -59,5 +57,20 @@ ros2 run bob_synth synth_node
 ros2 run bob_synth synth_gui.py
 ```
 
-## Aesthetics
-The GUI is designed with a premium dark theme, neon magenta accents, and an AI-first mindset.
+### CLI (AI Interaction)
+```bash
+ros2 topic pub /synth_config std_msgs/msg/String "data: '{\"frequency\": 220.0, \"waveform\": \"sawtooth\", \"filter_cutoff\": 2500.0, \"filter_resonance\": 0.6}'"
+```
+
+## GUI & User Experience
+
+The **Bob Synth - Moog Edition** features a high-fidelity control interface designed with a professional hardware-rack aesthetic.
+
+<img src="media/bob_synth.png" width="50%">
+
+- **Left Rack:** Real-time Oscillator controls and LFO Modulation management.
+- **Right Rack:** Precise 12dB State Variable Filter (SVF) and ADSR Envelope shaping.
+- **Master Section:** Dedicated full-width output gain control.
+- **Trigger:** Immediate MIDI-style note activation button.
+
+The interface utilizes a "Muted Premium" color palette (Deep Magenta and Petrol Cyan) to reduce eye strain during long sessions while providing clear visual feedback for all parameters.
