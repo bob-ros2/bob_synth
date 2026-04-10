@@ -14,9 +14,11 @@ This package is specifically optimized for AI interaction. It provides a clean R
 - **Payload**: High-quality 16-bit PCM audio (Int16MultiArray) at 44.1kHz.
 
 ## Architecture
-The system follows a decoupled architecture for maximum stability:
-1.  **Synth Node (C++)**: The real-time engine. Handles wave generation, ADSR envelopes, and LFO modulation.
-2.  **Synth GUI & Player (Python)**: The human interface and audio sink. Uses `sounddevice` (ALSA) for jitter-free playback on hardware (HDMI, Speakers).
+The system follows a modular, decoupled architecture for maximum stability and flexibility:
+
+- **Synth Node (C++):** The real-time engine. Handles wave generation, State Variable Filtering (SVF), ADSR envelopes, and LFO modulation.
+- **Synth GUI (Python):** The human control interface (Moog-style rack).
+- **Audio Sink (Python):** The playback engine, available as a **Headless Sink** for server/docker use or integrated into the GUI. Uses `sounddevice` (ALSA) for jitter-free playback on hardware (HDMI, Speakers).
 
 ## ROS 2 API
 
