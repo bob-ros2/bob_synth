@@ -140,7 +140,7 @@ class MainGUI:
         self.node = ros_node
         self.root = tk.Tk()
         self.root.title("Bob Synth - Moog Edition")
-        self.root.geometry("650x780")
+        self.root.geometry("750x780")
         self.root.configure(bg="#0f0f0f")
 
         # Color Palette - Muted Premium Tone
@@ -169,7 +169,7 @@ class MainGUI:
         header_frame = ttk.Frame(self.root, padding=10)
         header_frame.pack(fill="x")
         ttk.Label(header_frame, text="BOB SYNTH for AI's", style="Header.TLabel").pack()
-        ttk.Label(header_frame, text="(recursiv) groove into your heart ....",
+        ttk.Label(header_frame, text="groove into your heart ...",
                   style="Slogan.TLabel").pack()
 
         # --- Main Layout Container (2 Columns) ---
@@ -216,7 +216,7 @@ class MainGUI:
                          "waveform", self.wave_v.get(),
                          ParameterType.PARAMETER_STRING))
 
-        # --- RIGHT COLUMN: MODULATION & ENVELOPE ---
+        # --- RIGHT COLUMN: MODULATION, FILTER & ENVELOPE ---
         # Modulation
         m_frame = ttk.LabelFrame(right_col, text=" MODULATION (LFO) ", padding=12)
         m_frame.pack(fill="x", padx=10, pady=8)
@@ -234,6 +234,24 @@ class MainGUI:
                              variable=self.mod_depth_v,
                              command=lambda e: self.send_mod("mod_depth"))
         md_scale.pack(fill="x", pady=5)
+
+        # Filter
+        f_frame = ttk.LabelFrame(right_col, text=" FILTER (24dB) ", padding=12)
+        f_frame.pack(fill="x", padx=10, pady=8)
+
+        ttk.Label(f_frame, text="Cutoff Frequency (Hz)", background=panel_color).pack()
+        self.cutoff_v = tk.DoubleVar(value=1000.0)
+        c_scale = ttk.Scale(f_frame, from_=20, to=12000, orient="horizontal",
+                            variable=self.cutoff_v,
+                            command=lambda e: self.send_filter("filter_cutoff"))
+        c_scale.pack(fill="x", pady=5)
+
+        ttk.Label(f_frame, text="Resonance", background=panel_color).pack()
+        self.res_v = tk.DoubleVar(value=0.0)
+        r_scale = ttk.Scale(f_frame, from_=0, to=0.95, orient="horizontal",
+                            variable=self.res_v,
+                            command=lambda e: self.send_filter("filter_resonance"))
+        r_scale.pack(fill="x", pady=5)
 
         # Envelope (ADSR)
         a_frame = ttk.LabelFrame(right_col, text=" ENVELOPE (ADSR) ", padding=12)
@@ -276,6 +294,11 @@ class MainGUI:
             val = self.mod_freq_v.get()
         else:
             val = self.mod_depth_v.get()
+        self.node.set_param(name, val, ParameterType.PARAMETER_DOUBLE)
+
+    def send_filter(self, name):
+        """Send filter parameter update to synth node."""
+        val = self.cutoff_v.get() if name == "filter_cutoff" else self.res_v.get()
         self.node.set_param(name, val, ParameterType.PARAMETER_DOUBLE)
 
     def send_adsr(self, name):

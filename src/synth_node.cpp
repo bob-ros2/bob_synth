@@ -69,6 +69,8 @@ public:
     declare_with_env("waveform", std::string("sine"));
     declare_with_env("mod_frequency", 5.0);
     declare_with_env("mod_depth", 0.0);
+    this->declare_parameter("filter_cutoff", 1000.0);
+    this->declare_parameter("filter_resonance", 0.0);
     declare_with_env("note_on", false);
     declare_with_env("attack", 0.1);
     declare_with_env("decay", 0.1);
@@ -92,6 +94,7 @@ public:
 
     // Initial state sync
     syncInternalState();
+    filter_states_.fill(0.0);
 
     // Timer
     int chunk_ms = this->get_parameter("chunk_ms").as_int();
@@ -129,6 +132,8 @@ private:
     sample_rate_ = this->get_parameter("sample_rate").as_int();
     channels_ = this->get_parameter("channels").as_int();
     note_on_ = this->get_parameter("note_on").as_bool();
+    filter_cutoff_ = this->get_parameter("filter_cutoff").as_double();
+    filter_resonance_ = this->get_parameter("filter_resonance").as_double();
 
     int chunk_ms = this->get_parameter("chunk_ms").as_int();
     samples_per_chunk_ = (sample_rate_ * chunk_ms) / 1000;
@@ -146,12 +151,11 @@ private:
         while (v_p < json.size() && (json[v_p] == ' ' || json[v_p] == '\"')) {v_p++;}
         size_t e_p = json.find_first_of(",}\"", v_p);
         std::string val = json.substr(v_p, e_p - v_p);
+
         if (is_str) {
           updates.push_back(rclcpp::Parameter(key, val));
-        } else if (val == "true") {
-          updates.push_back(rclcpp::Parameter(key, true));
-        } else if (val == "false") {
-          updates.push_back(rclcpp::Parameter(key, false));
+        } else if (val == "true" || val == "false") {
+          updates.push_back(rclcpp::Parameter(key, val == "true"));
         } else {
           try {
             updates.push_back(rclcpp::Parameter(key, std::stod(val)));
@@ -160,6 +164,8 @@ private:
       };
 
     extract("frequency"); extract("amplitude"); extract("waveform", true);
+    extract("mod_frequency"); extract("mod_depth");
+    extract("filter_cutoff"); extract("filter_resonance");
     extract("note_on"); extract("attack"); extract("decay");
     extract("sustain"); extract("release");
 
@@ -195,8 +201,30 @@ private:
         s = (fmod(phase_, 2.0 * M_PI) / M_PI) - 1.0;
       }
 
-      double mixed_sample = s * amplitude_ * env_level_;
-      int16_t pcm = static_cast<int16_t>(std::clamp(mixed_sample, -1.0, 1.0) * 32767.0);
+      double sample = s * amplitude_ * env_level_;
+
+      // --- Apply Filter (4-pole Moog-like approximation) ---
+      double f = 2.0 * filter_cutoff_ / sample_rate_;
+      if (f > 0.99) {f = 0.99;}
+      double p = f * (1.8 - 0.8 * f);
+      double k = p + p - 1.0;
+      double res = filter_resonance_ / (1.0 - f);
+      if (res > 4.0) {res = 4.0;}
+
+      double x = sample - res * filter_states_[3];
+      filter_states_[0] = x * p + filter_prev_x_ * p - k * filter_states_[0];
+      filter_states_[1] = filter_states_[0] * p + filter_prev_s0_ * p - k * filter_states_[1];
+      filter_states_[2] = filter_states_[1] * p + filter_prev_s1_ * p - k * filter_states_[2];
+      filter_states_[3] = filter_states_[2] * p + filter_prev_s2_ * p - k * filter_states_[3];
+
+      filter_prev_x_ = x;
+      filter_prev_s0_ = filter_states_[0];
+      filter_prev_s1_ = filter_states_[1];
+      filter_prev_s2_ = filter_states_[2];
+
+      sample = filter_states_[3];
+
+      int16_t pcm = static_cast<int16_t>(std::clamp(sample, -1.0, 1.0) * 32767.0);
       for (int ch = 0; ch < channels_; ch++) {msg.data[i * channels_ + ch] = pcm;}
     }
 
@@ -238,7 +266,6 @@ private:
         }
         break;
     }
-    // Strict clamping to [0.0, 1.0] as per requirement
     env_level_ = std::max(0.0, std::min(1.0, env_level_));
   }
 
@@ -266,6 +293,10 @@ private:
           mod_frequency_ = p.as_double();
         } else if (p.get_name() == "mod_depth") {
           mod_depth_ = p.as_double();
+        } else if (p.get_name() == "filter_cutoff") {
+          filter_cutoff_ = p.as_double();
+        } else if (p.get_name() == "filter_resonance") {
+          filter_resonance_ = p.as_double();
         } else if (p.get_name() == "note_on") {
           if (p.as_bool() && !note_on_) {
             note_on_ = true; adsr_phase_ = ATTACK;
@@ -290,6 +321,13 @@ private:
   double mod_frequency_, mod_depth_;
   std::string waveform_;
   int sample_rate_, channels_, samples_per_chunk_;
+  double filter_cutoff_;
+  double filter_resonance_;
+  std::array<double, 4> filter_states_;
+  double filter_prev_x_ = 0.0;
+  double filter_prev_s0_ = 0.0;
+  double filter_prev_s1_ = 0.0;
+  double filter_prev_s2_ = 0.0;
   bool note_on_ = false;
   double phase_ = 0.0, mod_phase_ = 0.0, env_level_ = 0.0;
   std::mutex audio_mutex_;
