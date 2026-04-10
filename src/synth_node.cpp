@@ -204,8 +204,10 @@ private:
       double sample = s * amplitude_ * env_level_;
 
       // --- Apply Filter (4-pole Moog-like approximation) ---
-      double f = 2.0 * filter_cutoff_ / sample_rate_;
-      if (f > 0.99) {f = 0.99;}
+      // Hard clamp cutoff to prevent Nyquist instability (16kHz limit)
+      double safe_cutoff = std::min(filter_cutoff_, 16000.0);
+      double f = 2.0 * safe_cutoff / sample_rate_;
+
       double p = f * (1.8 - 0.8 * f);
       double k = p + p - 1.0;
       double res = filter_resonance_ / (1.0 - f);
@@ -223,6 +225,13 @@ private:
       filter_prev_s2_ = filter_states_[2];
 
       sample = filter_states_[3];
+
+      // Stability check: Reset if NaN/Inf (Panic Recovery)
+      if (std::isnan(sample) || std::isinf(sample)) {
+        sample = 0.0;
+        filter_states_.fill(0.0);
+        filter_prev_x_ = filter_prev_s0_ = filter_prev_s1_ = filter_prev_s2_ = 0.0;
+      }
 
       int16_t pcm = static_cast<int16_t>(std::clamp(sample, -1.0, 1.0) * 32767.0);
       for (int ch = 0; ch < channels_; ch++) {msg.data[i * channels_ + ch] = pcm;}
