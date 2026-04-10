@@ -57,20 +57,37 @@ ros2 run bob_synth synth_node
 ros2 run bob_synth synth_gui.py
 ```
 
-### CLI (AI Interaction)
+### CLI (One-Shot)
 ```bash
 ros2 topic pub /synth_config std_msgs/msg/String "data: '{\"frequency\": 220.0, \"waveform\": \"sawtooth\", \"filter_cutoff\": 2500.0, \"filter_resonance\": 0.6}'"
 ```
 
-## GUI & User Experience
+## AI Control Interface (JSON)
 
-The **Bob Synth - Moog Edition** features a high-fidelity control interface designed with a professional hardware-rack aesthetic.
+Der Synthesizer ist primär dafür gedacht, KI-Agenten eine zusätzliche "Ausdrucksebene" zu bieten (ähnlich wie Emojis). Die Steuerung erfolgt über das Topic `/synth_config` mittels JSON-Strings.
+
+### JSON Schema
+| Key | Type | Range | Description |
+|:--- |:--- |:--- |:--- |
+| `note_on` | boolean | `true`/`false` | Triggert die ADSR-Hüllkurve |
+| `frequency` | float | 20.0 - 2000.0 | Grundfrequenz in Hz |
+| `waveform` | string | `sine`, `square`, `sawtooth` | Oszillator-Typ |
+| `amplitude` | float | 0.0 - 1.0 | Master-Gain (Lautstärke) |
+| `filter_cutoff` | float | 20.0 - 16000.0 | Eckfrequenz des SV-Filters |
+| `filter_resonance`| float | 0.0 - 0.95 | Resonanz-Güte |
+| `mod_frequency` | float | 0.0 - 20.0 | LFO-Geschwindigkeit |
+| `mod_depth` | float | 0.0 - 100.0 | LFO-Intensität |
+| `attack`/`decay` | float | 0.0 - 2.0 | ADSR Zeitwerte (Sekunden) |
+
+## GUI & User Interface
+
+Die GUI dient zur Visualisierung und manuellen Justierung der Parameter während der Entwicklung.
 
 <img src="media/bob_synth.png" width="50%">
 
-- **Left Rack:** Real-time Oscillator controls and LFO Modulation management.
-- **Right Rack:** Precise 12dB State Variable Filter (SVF) and ADSR Envelope shaping.
-- **Master Section:** Dedicated full-width output gain control.
-- **Trigger:** Immediate MIDI-style note activation button.
-
-The interface utilizes a "Muted Premium" color palette (Deep Magenta and Petrol Cyan) to reduce eye strain during long sessions while providing clear visual feedback for all parameters.
+### Bedien-Panels
+*   **OSCILLATOR:** Einstellung der Wellenform und Grundfrequenz.
+*   **MODULATION:** LFO zur Frequenzmodulation (Vibrato/FX).
+*   **FILTER:** 12dB State Variable Filter (Lowpass) mit Resonanz.
+*   **ENVELOPE:** Standard ADSR-Hüllkurve für den Lautstärkeverlauf.
+*   **MASTER/TRIGGER:** Endlautstärke und manueller Note-Trigger.
