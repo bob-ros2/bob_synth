@@ -9,11 +9,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_executable(synth_node src/synth_node.cpp)
-target_include_directories(synth_node PRIVATE include)
-ament_target_dependencies(synth_node rclcpp std_msgs)
+add_executable(synth src/synth_node.cpp)
+target_include_directories(synth PRIVATE include)
+ament_target_dependencies(synth rclcpp std_msgs)
 
-install(TARGETS synth_node
+install(TARGETS synth
   DESTINATION lib/${PROJECT_NAME})
 
 install(PROGRAMS
