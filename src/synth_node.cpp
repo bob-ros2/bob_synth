@@ -34,7 +34,7 @@ class SynthNode : public rclcpp::Node
 {
 public:
   SynthNode()
-  : Node("bob_synth")
+  : Node("synth")
   {
     callback_group_ = this->create_callback_group(
       rclcpp::CallbackGroupType::Reentrant);
